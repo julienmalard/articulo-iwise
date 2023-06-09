@@ -1,0 +1,171 @@
+{
+  "Male": {
+    "es": "Hombre"
+  },
+  "Female": {
+    "es": "Mujer"
+  },
+  "Poorest 20%": {
+    "es": "20% m\u00e1s pobre"
+  },
+  "Second 20%": {
+    "es": "Segundo 20%"
+  },
+  "Middle 20%": {
+    "es": "20% medio"
+  },
+  "Fourth 20%": {
+    "es": "Cuarto 20%"
+  },
+  "Richest 20%": {
+    "es": "20% m\u00e1s rico"
+  },
+  "Living comfortably on present income": {
+    "es": "Vive confortablemente con ingresos actuales"
+  },
+  "Getting by on present income": {
+    "es": "Ingresos actuales son suficientes"
+  },
+  "Finding it difficult on present income": {
+    "es": "Dif\u00edcil vivir con ingresos actuales"
+  },
+  "Finding it very difficult on present income": {
+    "es": "Muy dif\u00edcil vivir con ingresos actuales"
+  },
+  "Goi\u00e1s": {},
+  "Pernambuco": {},
+  "Rio de Janeiro": {},
+  "Bahia": {},
+  "Tocantins": {},
+  "Alagoas": {},
+  "S\u00e3o Paulo": {},
+  "Cear\u00e1": {},
+  "Rondonia": {},
+  "Paran\u00e1": {},
+  "Minas Gerais": {},
+  "Rio Grande do Sul": {},
+  "Par\u00e1": {},
+  "Amazonas": {},
+  "Santa Catarina": {},
+  "Mato Grosso do Sul": {},
+  "Maranh\u00e3o": {},
+  "Amap\u00e1": {},
+  "Piau\u00ed": {},
+  "Espirito Santo": {},
+  "Sergipe": {},
+  "Roraima": {},
+  "Para\u00edba": {},
+  "Rio Grande do Norte": {},
+  "Acre": {},
+  "Distrito Federal": {},
+  "Mato Grosso": {},
+  "Comayagua": {},
+  "El Para\u00edso": {},
+  "Valle": {},
+  "Cop\u00e1n": {},
+  "Cort\u00e9s": {},
+  "Intibuc\u00e1": {},
+  "Francisco Moraz\u00e1n": {},
+  "Choluteca": {},
+  "Olancho": {},
+  "Santa B\u00e1rbara": {},
+  "Atl\u00e1ntida": {},
+  "Yoro": {},
+  "Lempira": {},
+  "Colon": {},
+  "La Paz": {},
+  "Gracias a Dios": {},
+  "Ocotepeque": {},
+  "Isla de la Bah\u00eda": {},
+  "(Refused)": {},
+  "Guatemala": {},
+  "Pet\u00e9n": {},
+  "Alta Verapaz": {},
+  "El Progreso": {},
+  "Jalapa": {},
+  "Baja Verapaz": {},
+  "Escuintla": {},
+  "Quetzaltenango": {},
+  "Suchitep\u00e9quez": {},
+  "Solol\u00e1": {},
+  "San Marcos": {},
+  "Izabal": {},
+  "Zacapa": {},
+  "Totonicap\u00e1n": {},
+  "Quich\u00e9": {},
+  "Santa Rosa": {},
+  "Sacatep\u00e9quez": {},
+  "Chimaltenango": {},
+  "Retalhuleu": {},
+  "Jutiapa": {},
+  "Huehuetenango": {},
+  "Chiquimula": {},
+  "lima": {},
+  "LA LIBERTAD": {},
+  "piura": {},
+  "jun\u00cdn": {},
+  "arequipa": {},
+  "lambayeque": {},
+  "puno": {},
+  "SAN MART\u00cdN": {},
+  "huanuco": {},
+  "loreto": {},
+  "cajamarca": {},
+  "amazonas": {},
+  "tumbes": {},
+  "ica": {},
+  "cusco": {},
+  "huancavelica": {},
+  "apurimac": {},
+  "ancash": {},
+  "ayacucho": {},
+  "tacna": {},
+  "MADRE DE DIOS": {},
+  "ucayali": {},
+  "A rural area or on a farm": {},
+  "A suburb of a large city": {},
+  "A large city": {},
+  "A small town or village": {},
+  "Single/Never been married": {
+    "es": "Soltero"
+  },
+  "Married": {
+    "es": "Casado"
+  },
+  "Domestic partner": {
+    "es": "Con pareja"
+  },
+  "Separated": {
+    "es": "Separado"
+  },
+  "Divorced": {
+    "es": "Divorciado"
+  },
+  "Widowed": {
+    "es": "Viudo"
+  },
+  "Secondary - 3 year TertiarySecondary education and some education beyond secondary education (9-15 years of educatio": {},
+  "Completed elementary education or less (up to 8 years of basic education)": {},
+  "Completed four years of education beyond high school and/or received a 4-year college degree.": {},
+  "Employed part time want full time": {},
+  "Unemployed": {
+    "es": "Sin empleo"
+  },
+  "Employed full time for an employer": {},
+  "Out of workforce": {},
+  "Employed part time do not want full time": {},
+  "Employed full time for self": {},
+  "Christian": {
+    "es": "Cristiano"
+  },
+  "Secular/Non-religious": {
+    "es": "Sin religión"
+  },
+  "Other": {
+    "es": "Otro"
+  },
+  "Islam": {},
+  "Buddhism": {},
+  "Hinduism": {},
+  "Judaism": {},
+}
