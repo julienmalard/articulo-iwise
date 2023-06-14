@@ -9,6 +9,6 @@ librerías necesarias:
 
 ## Utilización
 Ejecutar el programa `principal.py` para generar los resultados.
-
+Se pueden ajustar las opciones del análisis (idioma de gráficos, directorio de egreso) en `constantes.py`.
 ## Licencias
-Mapas de Brazil y Honduras de OCHA Regional Office for Latin America and the Caribbean (ROLAC) bajo licencia CC BY sobre  HDX (https://data.humdata.org).
+Mapas de Brazil, Perú y Honduras de OCHA Regional Office for Latin America and the Caribbean (ROLAC) bajo licencia CC BY sobre  HDX (https://data.humdata.org).
