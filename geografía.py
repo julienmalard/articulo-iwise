@@ -54,17 +54,21 @@ class Geografía(object):
         if faltan_en_mapa:
             warnings.warn(f"Faltan las regiones siguientes en el mapa: {faltan_en_mapa}")
 
-        for rgn, frm in zip(regiones, símismo.forma.shapes()):
+        for frm in símismo.forma.shapes():
             puntos = frm.points
             partes = frm.parts
 
-            rgn_final = código(rgn)
+            rgn = símismo.forma.record(frm.oid, fields=[símismo.columna_región])
+            rgn_final = código(rgn[símismo.columna_región])
 
             try:
                 i_rgn = vals_norm.index.values.tolist().index(rgn_final)
+                clr = v_cols[i_rgn]
+                alpha = (1 - desv_típ_norm[i_rgn]) / 2 + 0.5
             except ValueError:
                 warnings.warn(f"Región {rgn_final} no encontrada en los datos.")
-                continue
+                clr = [0.8, 0.8, 0.8]
+                alpha = 1
 
             for ip, i0 in enumerate(partes):  # Para cada parte de la imagen
 
@@ -80,8 +84,6 @@ class Geografía(object):
                     x_lon[j] = seg[j][0]
                     y_lat[j] = seg[j][1]
 
-                clr = v_cols[i_rgn]
-                alpha = (1 - desv_típ_norm[i_rgn]) / 2 + 0.5
                 if llenar:
                     eje.fill(x_lon, y_lat, color=clr, alpha=alpha)
                 else:
