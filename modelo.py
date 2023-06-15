@@ -40,7 +40,12 @@ class Modelo(object):
         categorías_x = pd.Categorical(datos_x)
 
         with pm.Model():
-            a = pm.Normal(name="a", shape=categorías_x.categories.size)
+            # Referencia: https://twiecki.io/blog/2017/02/08/bayesian-hierchical-non-centered/
+            mu_a = pm.Normal(name="mu_a", sigma=.1)
+            sigma_a = pm.HalfNormal(name="sigma_a", sigma=.1)
+
+            ajuste_a = pm.Normal(name="ajuste_a", mu=0, sigma=1, shape=categorías_x.categories.size)
+            a = pm.Deterministic("a", mu_a + ajuste_a * sigma_a)
 
             índices_a = categorías_x.codes
             pm.Bernoulli(logit_p=a[índices_a], name="prob", observed=datos_país[símismo.var_y])
@@ -67,7 +72,7 @@ class Modelo(object):
             categorías_x = símismo.obt_categorías_x(país)
             símismo.obt_categorías_x(país)
 
-            az.plot_trace(traza, ["b"])
+            az.plot_trace(traza, ["b", "a", "mu_a", "sigma_a"])
             fig = plt.gcf()
             fig.suptitle(f"{país}: Probabilidad por {', '.join(categorías_x.categories.tolist())}")
             fig.savefig(símismo.archivo_gráfico(país, "traza"))
