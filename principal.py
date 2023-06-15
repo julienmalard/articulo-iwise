@@ -1,13 +1,12 @@
 import os.path
-import warnings
 
 import numpy as np
 import pandas as pd
 
-from constantes import COL_REGIÓN, COLS_REGIONES, DIR_EGRESO, COL_PAÍS, COL_SEGGHÍD, COL_SEGHÍD_BRUTA, IDIOMA
+from constantes import COL_REGIÓN, COLS_REGIONES, DIR_EGRESO, COL_PAÍS, COL_SEGGHÍD, COL_SEGHÍD_BRUTA
 from geografía import Geografía
 from modelo import Modelo, ConfigDatos
-from traducciones import traducciones, guardar_traducciones
+from traducciones import guardar_traducciones
 
 
 def preparar_datos():
