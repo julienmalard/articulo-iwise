@@ -75,7 +75,7 @@ class Geografía(object):
             try:
                 i_rgn = vals_norm.index.values.tolist().index(rgn_final)
                 clr = v_cols[i_rgn]
-                alpha = (1 - desv_típ_norm[i_rgn]) / 2 + 0.5
+                alpha = (1 - desv_típ_norm[i_rgn]) * 0.75 + 0.25
             except ValueError:
                 warnings.warn(f"Región {rgn_final} no encontrada en los datos.")
                 clr = [0.8, 0.8, 0.8]

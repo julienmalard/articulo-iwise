@@ -1,10 +1,13 @@
 import math
 from os import path, makedirs
+from typing import Optional
 
 import arviz as az
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import pymc as pm
+import scipy as sp
 import seaborn as sns
 
 from constantes import VALS_EXCLUIR, IDIOMA
@@ -34,12 +37,19 @@ class Modelo(object):
         símismo.var_y = var_y
         símismo.var_x = var_x
         símismo.config = config
-        símismo.datos = config.datos[list({var_y, var_x, config.col_país, config.col_región})].dropna()
+        símismo.datos = config.datos[
+            list({
+                var_y, var_x, config.col_país, config.col_región,
+                *(config.cols_preguntas or []),
+                *([config.col_pesos] if config.col_pesos else [])
+            })
+        ].dropna()
+        símismo.países = símismo.obt_datos()[config.col_país].unique()
 
         símismo.recalibrado = False
 
     def calibrar(símismo, país: str):
-        datos_país = símismo.obt_datos_país(país)
+        datos_país = símismo.obt_datos(país)
         datos_x = datos_país[símismo.var_x]
         categorías_x = pd.Categorical(datos_x)
 
