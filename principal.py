@@ -3,7 +3,8 @@ import os.path
 import numpy as np
 import pandas as pd
 
-from constantes import COL_REGIÓN, COLS_REGIONES, DIR_EGRESO, COL_PAÍS, COL_SEGGHÍD, COL_SEGHÍD_BRUTA
+from constantes import COL_REGIÓN, COLS_REGIONES, DIR_EGRESO, COL_PAÍS, COL_SEGGHÍD, COL_SEGHÍD_BRUTA, COLS_PREGUNTAS, \
+    COL_PESOS
 from geografía import Geografía
 from modelo import Modelo, ConfigDatos
 from traducciones import guardar_traducciones
@@ -24,10 +25,13 @@ def preparar_datos():
 
 def preparar_config():
     datos_pd = preparar_datos()
-    return ConfigDatos(datos_pd, dir_egreso=DIR_EGRESO, col_país=COL_PAÍS, col_región=COL_REGIÓN)
+    return ConfigDatos(
+        datos_pd, dir_egreso=DIR_EGRESO, col_país=COL_PAÍS, col_región=COL_REGIÓN, cols_preguntas=COLS_PREGUNTAS,
+        col_pesos=COL_PESOS
+    )
 
 
-# Mapa IARNA
+# Mapa del IARNA URL Guatemala
 Guatemala = Geografía(
     os.path.join("geog", "mapas", "guatemala", "departamentos_gtm_fin"),
     país="Guatemala",

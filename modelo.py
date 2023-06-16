@@ -16,12 +16,16 @@ class ConfigDatos(object):
             símismo, datos: pd.DataFrame,
             dir_egreso: str,
             col_país: str,
-            col_región: str
+            col_región: str,
+            cols_preguntas: Optional[str] = None,
+            col_pesos: Optional[str] = None
     ):
         símismo.datos = datos
         símismo.dir_egreso = dir_egreso
         símismo.col_país = col_país
         símismo.col_región = col_región
+        símismo.cols_preguntas = cols_preguntas
+        símismo.col_pesos = col_pesos
 
 
 class Modelo(object):
@@ -48,8 +52,13 @@ class Modelo(object):
             a = pm.Deterministic("a", mu_a + ajuste_a * sigma_a)
 
             índices_a = categorías_x.codes
-            pm.Bernoulli(logit_p=a[índices_a], name="prob", observed=datos_país[símismo.var_y])
-
+            if símismo.config.col_pesos:
+                # https://discourse.pymc.io/t/how-to-run-logistic-regression-with-weighted-samples/5689/8
+                log_p = datos_país[símismo.config.col_pesos].values * pm.logp(
+                    pm.Bernoulli.dist(logit_p=a[índices_a], name="prob"), datos_país[símismo.var_y])
+                pm.Potential("error", log_p)
+            else:
+                pm.Bernoulli(logit_p=a[índices_a], name="prob", observed=datos_país[símismo.var_y])
             pm.Deterministic("b", pm.math.invlogit(a))
 
             traza = pm.sample()
@@ -131,20 +140,22 @@ class Modelo(object):
             símismo.calibrar(país)
         return az.from_netcdf(símismo.archivo_calibs(país))
 
-    def obt_datos_país(símismo, país: str):
-        datos_país = símismo.datos.loc[símismo.datos[símismo.config.col_país] == país]
+    def obt_datos(símismo, país: Optional[str] = None):
+        datos = símismo.datos
+        if país:
+            datos = datos.loc[símismo.datos[símismo.config.col_país] == país]
 
-        if datos_país[símismo.var_x].dtype == "category":
+        if datos[símismo.var_x].dtype == "category":
             for v in VALS_EXCLUIR:
                 datos_país = datos_país.loc[datos_país[símismo.var_x] != v]
             datos_país[símismo.var_x] = datos_país[símismo.var_x].cat.remove_unused_categories()
 
-        datos_país = datos_país.dropna()
+        datos = datos.dropna()
 
         return datos_país
 
     def obt_categorías_x(símismo, país: str):
-        datos_país = símismo.obt_datos_país(país)
+        datos_país = símismo.obt_datos(país)
         datos_x = datos_país[símismo.var_x]
         for c in datos_x.unique():
             datos_x = datos_x.replace(c, traducir(c, IDIOMA))
