@@ -100,10 +100,11 @@ if __name__ == "__main__":
     config = preparar_config()
 
     modelo = Modelo("Región", var_y=COL_SEGGHÍD, var_x=COL_REGIÓN, config=config).dibujar()
-    Brazil.dibujar(modelo, colores=-1)
-    Guatemala.dibujar(modelo, colores=-1)
-    Honduras.dibujar(modelo, colores=-1)
-    Perú.dibujar(modelo, colores=-1)
+
+    Brazil.dibujar(modelo, colores=-1, escala_común=True)
+    Guatemala.dibujar(modelo, colores=-1, escala_común=True)
+    Honduras.dibujar(modelo, colores=-1, escala_común=True)
+    Perú.dibujar(modelo, colores=-1, escala_común=True)
 
     Modelo("Género", var_y=COL_SEGGHÍD, var_x="WP1219", config=config).dibujar()
 

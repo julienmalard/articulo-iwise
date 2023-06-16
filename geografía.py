@@ -15,7 +15,7 @@ class Geografía(object):
         símismo.columna_región = columna_región
         símismo.traslado_nombres = traslado_nombres or {}
 
-    def dibujar(símismo, modelo: Modelo, colores=None, llenar=True):
+    def dibujar(símismo, modelo: Modelo, colores=None, llenar=True, escala_común=False):
         fig, eje = plt.subplots(1, 1, figsize=(8, 6))
         eje.set_aspect('equal', 'box')
 
@@ -23,13 +23,24 @@ class Geografía(object):
         vals_por_región = traza.mean()
         desv_típ_por_región = traza.std()
 
-        escala = (min(vals_por_región), max(vals_por_región))
+        if escala_común:
+            trazas = [modelo.obt_traza_por_categoría(país) for país in modelo.países]
+            escala = (
+                np.min(np.concatenate([t.mean() for t in trazas])), np.max(np.concatenate([t.mean() for t in trazas]))
+            )
+            escala_desv = (
+                np.min(np.concatenate([t.std() for t in trazas])), np.max(np.concatenate([t.std() for t in trazas]))
+            )
+        else:
+            escala = (min(vals_por_región), max(vals_por_región))
+            escala_desv = (min(desv_típ_por_región), max(desv_típ_por_región))
+
         if escala[0] == escala[1]:
             escala = (escala[0] - 0.5, escala[0] + 0.5)
 
         vals_norm = (vals_por_región - escala[0]) / (escala[1] - escala[0])
-        desv_típ_norm = (desv_típ_por_región - min(desv_típ_por_región)) / (
-                max(desv_típ_por_región) - min(desv_típ_por_región)
+        desv_típ_norm = (desv_típ_por_región - escala_desv[0]) / (
+                escala_desv[1] - escala_desv[0]
         )
 
         escala_colores = símismo._resolver_colores(colores)
