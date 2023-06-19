@@ -11,7 +11,7 @@ from traducciones import guardar_traducciones
 
 
 def preparar_datos():
-    datos_pd = pd.read_stata("datos/IWISE2020-2022_LatinAmerica.dta")
+    datos_pd = pd.read_csv("datos/IWISE2020-2022_LatinAmerica_20230615_Labels_utf8.csv")
 
     # Combinar columnas de región
     datos_pd[COL_REGIÓN] = np.nan
@@ -36,7 +36,8 @@ Guatemala = Geografía(
     os.path.join("geog", "mapas", "guatemala", "departamentos_gtm_fin"),
     país="Guatemala",
     columna_región="FIRST_DEPA",
-    args_shp={"encoding": "latin-1"}
+    args_shp={"encoding": "latin-1"},
+    traslado_nombres={"Belice": None}  # Sin comentario
 )
 
 # https://data.humdata.org/dataset/cod-ab-hnd
@@ -53,8 +54,7 @@ Honduras = Geografía(
         "Intibuca": "Intibucá",
         "Francisco Morazan": "Francisco Morazán",
         "El Paraiso": "El Paraíso"
-    }
-)
+    })
 
 Brazil = Geografía(
     os.path.join("geog", "mapas", "brazil", "bra_admbnda_adm1_ibge_2020"),
@@ -112,7 +112,7 @@ if __name__ == "__main__":
 
     Modelo("Género", var_y=COL_SEGGHÍD, var_x="WP1219", config=config).dibujar()
 
-    Modelo("Ruralidad", var_y=COL_SEGGHÍD, var_x="WP14", config=config).dibujar()
+    Modelo("Ruralidad", var_y=COL_SEGGHÍD, var_x="degurba", config=config).dibujar()
 
     Modelo("Matrimonio", var_y=COL_SEGGHÍD, var_x="WP1223", config=config).dibujar()
 
