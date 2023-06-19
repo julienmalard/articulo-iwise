@@ -9,8 +9,14 @@ from modelo import Modelo
 
 
 class Geografía(object):
-    def __init__(símismo, archivo: str, país: str, columna_región: str, traslado_nombres=None, args_shp=None):
-        símismo.forma = sf.Reader(archivo, **(args_shp or {}))
+    def __init__(
+            símismo, forma: Union[str, sf.Reader], país: str, columna_región: str, traslado_nombres=None,
+            args_shp=None
+    ):
+        if isinstance(forma, str):
+            símismo.forma = sf.Reader(forma, **(args_shp or {}))
+        else:
+            símismo.forma = forma
         símismo.país = país
         símismo.columna_región = columna_región
         símismo.traslado_nombres = traslado_nombres or {}
@@ -71,6 +77,9 @@ class Geografía(object):
 
             rgn = símismo.forma.record(frm.oid, fields=[símismo.columna_región])
             rgn_final = código(rgn[símismo.columna_región])
+
+            if rgn_final is None:
+                continue
 
             try:
                 i_rgn = vals_norm.index.values.tolist().index(rgn_final)
