@@ -157,12 +157,12 @@ class Modelo(object):
 
         if datos[símismo.var_x].dtype == "category":
             for v in VALS_EXCLUIR:
-                datos_país = datos_país.loc[datos_país[símismo.var_x] != v]
-            datos_país[símismo.var_x] = datos_país[símismo.var_x].cat.remove_unused_categories()
+                datos = datos.loc[datos[símismo.var_x] != v]
+            datos[símismo.var_x] = datos[símismo.var_x].cat.remove_unused_categories()
 
         datos = datos.dropna()
 
-        return datos_país
+        return datos
 
     def obt_categorías_x(símismo, país: str):
         datos_país = símismo.obt_datos(país)
