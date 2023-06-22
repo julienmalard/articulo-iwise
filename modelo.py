@@ -82,7 +82,7 @@ class Modelo(object):
 
         return símismo
 
-    def dibujar_traza(símismo, recalibrar=False):
+    def dibujar_traza(símismo, recalibrar=False, ejes: Optional[plt.Axes] = None):
         países = símismo.datos[símismo.config.col_país].unique()
 
         for país in países:
@@ -91,11 +91,12 @@ class Modelo(object):
             categorías_x = símismo.obt_categorías_x(país)
             símismo.obt_categorías_x(país)
 
-            az.plot_trace(traza, ["b", "a", "mu_a", "sigma_a"])
-            fig = plt.gcf()
-            fig.suptitle(f"{país}: Probabilidad por {', '.join(categorías_x.categories.tolist())}")
-            fig.savefig(símismo.archivo_gráfico(país, "traza"))
-            plt.close(fig)
+            az.plot_trace(traza, ["b", "a", "mu_a", "sigma_a"], axes=ejes)
+            if ejes:
+                fig = plt.gcf()
+                fig.suptitle(f"{país}: Probabilidad por {', '.join(categorías_x.categories.tolist())}")
+                fig.savefig(símismo.archivo_gráfico(país, "traza"))
+                plt.close(fig)
 
     def dibujar_caja_bigotes(símismo, recalibrar=False):
         países = símismo.datos[símismo.config.col_país].unique()

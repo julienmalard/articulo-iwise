@@ -16,3 +16,6 @@ COLS_REGIONES = ["REGION_BRA", "REGION_GTM", "REGION_HND", "REGION_PER"]
 DIR_EGRESO = "resultados"
 
 IDIOMA = "es"
+
+# Generar todos los gráficos (análisis exploratorio) o únicamente las de la publicación
+EXPLORATORIO = False

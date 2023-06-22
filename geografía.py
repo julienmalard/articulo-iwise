@@ -1,5 +1,5 @@
 import warnings
-from typing import Union
+from typing import Union, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,9 +22,18 @@ class Geografía(object):
         símismo.columna_región = columna_región
         símismo.traslado_nombres = traslado_nombres or {}
 
-    def dibujar(símismo, modelo: Modelo, colores=None, llenar=True, escala_común=False):
-        fig, eje = plt.subplots(1, 1, figsize=(8, 6))
-        eje.set_aspect('equal', 'box')
+    def dibujar(
+            símismo,
+            modelo: Modelo,
+            colores=None,
+            llenar=True,
+            escala_común=False,
+            eje: Optional[plt.Axes] = None
+    ):
+        fig = None
+        if not eje:
+            fig, eje = plt.subplots(1, 1, figsize=(8, 6))
+            eje.set_aspect('equal', 'box')
 
         traza = modelo.obt_traza_por_categoría(símismo.país)
         vals_por_región = traza.mean()
@@ -110,9 +119,12 @@ class Geografía(object):
                 else:
                     eje.plot(x_lon, y_lat, color=clr, alpha=alpha)
 
-        fig.suptitle("Probabilidad de inseguridad hídrica")
-        fig.colorbar(cpick, ax=eje)
-        fig.savefig(modelo.archivo_gráfico(país=símismo.país, tipo="geog"))
+        if fig:
+            fig.suptitle("Probabilidad de inseguridad hídrica")
+            fig.colorbar(cpick, ax=eje)
+            fig.savefig(modelo.archivo_gráfico(país=símismo.país, tipo="geog"))
+
+        return {'colores': cpick}
 
     @staticmethod
     def _resolver_colores(colores=None):

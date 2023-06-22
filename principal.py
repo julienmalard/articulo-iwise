@@ -1,10 +1,12 @@
 import os.path
+from os import path, makedirs
 
 import numpy as np
 import pandas as pd
+from matplotlib import pyplot as plt
 
 from constantes import COL_REGIÓN, COLS_REGIONES, DIR_EGRESO, COL_PAÍS, COL_SEGGHÍD, COL_SEGHÍD_BRUTA, COLS_PREGUNTAS, \
-    COL_PESOS
+    COL_PESOS, EXPLORATORIO
 from geografía import Geografía
 from modelo import Modelo, ConfigDatos
 from traducciones import guardar_traducciones
@@ -102,28 +104,79 @@ Perú = Geografía(
 
 if __name__ == "__main__":
     config = preparar_config()
+    modelo = Modelo("Región", var_y=COL_SEGGHÍD, var_x=COL_REGIÓN, config=config)
 
-    modelo = Modelo("Región", var_y=COL_SEGGHÍD, var_x=COL_REGIÓN, config=config).dibujar()
+    if EXPLORATORIO:
+        modelo.dibujar()
+        Brazil.dibujar(modelo, colores=-1, escala_común=True)
+        Guatemala.dibujar(modelo, colores=-1, escala_común=True)
+        Honduras.dibujar(modelo, colores=-1, escala_común=True)
+        Perú.dibujar(modelo, colores=-1, escala_común=True)
 
-    Brazil.dibujar(modelo, colores=-1, escala_común=True)
-    Guatemala.dibujar(modelo, colores=-1, escala_común=True)
-    Honduras.dibujar(modelo, colores=-1, escala_común=True)
-    Perú.dibujar(modelo, colores=-1, escala_común=True)
+        Modelo("Género", var_y=COL_SEGGHÍD, var_x="WP1219", config=config).dibujar()
 
-    Modelo("Género", var_y=COL_SEGGHÍD, var_x="WP1219", config=config).dibujar()
+        Modelo("Ruralidad", var_y=COL_SEGGHÍD, var_x="degurba", config=config).dibujar()
 
-    Modelo("Ruralidad", var_y=COL_SEGGHÍD, var_x="degurba", config=config).dibujar()
+        Modelo("Matrimonio", var_y=COL_SEGGHÍD, var_x="WP1223", config=config).dibujar()
 
-    Modelo("Matrimonio", var_y=COL_SEGGHÍD, var_x="WP1223", config=config).dibujar()
+        Modelo("Nivel educativo", var_y=COL_SEGGHÍD, var_x="WP3117", config=config).dibujar()
 
-    Modelo("Nivel educativo", var_y=COL_SEGGHÍD, var_x="WP3117", config=config).dibujar()
+        Modelo("Empleo", var_y=COL_SEGGHÍD, var_x="EMP_2010", config=config).dibujar()
 
-    Modelo("Empleo", var_y=COL_SEGGHÍD, var_x="EMP_2010", config=config).dibujar()
+        Modelo("Religión", var_y=COL_SEGGHÍD, var_x="WP1233RECODED", config=config).dibujar()
 
-    Modelo("Religión", var_y=COL_SEGGHÍD, var_x="WP1233RECODED", config=config).dibujar()
+        Modelo("Dificultad económica", var_y=COL_SEGGHÍD, var_x="WP2319", config=config).dibujar()
 
-    Modelo("Dificultad económica", var_y=COL_SEGGHÍD, var_x="WP2319", config=config).dibujar()
+        Modelo("Clase económica", var_y=COL_SEGGHÍD, var_x="INCOME_5", config=config).dibujar()
 
-    Modelo("Clase económica", var_y=COL_SEGGHÍD, var_x="INCOME_5", config=config).dibujar()
+    else:
+        dir_figuras = os.path.join(config.dir_egreso, 'publicación')
+        if not path.isdir(dir_figuras):
+            makedirs(dir_figuras)
+
+        # Figura 1 - Mapas
+        fig, ejes = plt.subplots(2, 2, figsize=(16, 12))
+        fig.subplots_adjust(top=0.85, bottom=0, wspace=0.01, hspace=0.05)
+        for eje in [e for x in ejes for e in x]:
+            eje.set_aspect('equal', 'box')
+            eje.axis('off')
+
+        Brazil.dibujar(modelo, colores=-1, escala_común=True, eje=ejes[0][0])
+        Guatemala.dibujar(modelo, colores=-1, escala_común=True, eje=ejes[1][0])
+        Honduras.dibujar(modelo, colores=-1, escala_común=True, eje=ejes[0][1])
+        resultados = Perú.dibujar(modelo, colores=-1, escala_común=True, eje=ejes[1][1])
+
+        ejes[0][0].set_title('Brazil', fontsize=18)
+        ejes[1][0].set_title('Guatemala', fontsize=18)
+        ejes[0][1].set_title('Honduras', fontsize=18)
+        ejes[1][1].set_title('Perú', fontsize=18)
+
+        fig.colorbar(resultados['colores'], ax=ejes[:, 1], location='right', shrink=0.6)
+
+        fig.suptitle('Probabilidad de inseguridad hídrica', fontsize=35)
+        fig.savefig(os.path.join(dir_figuras, 'Figura 1'))
+
+        # Figura 3 - Género
+        def generar_ejes():
+            fig, ejes = plt.subplots(2, 2, figsize=(16, 12))
+            fig.subplots_adjust(top=0.9, bottom=0, wspace=0.01, hspace=0.01)
+            for eje in [e for x in ejes for e in x]:
+                eje.set_aspect('equal', 'box')
+                eje.axis('off')
+            return fig, ejes
+
+        modelo_género = Modelo("Género", var_y=COL_SEGGHÍD, var_x="WP1219", config=config)
+
+        fig, ejes = generar_ejes()
+
+        modelo_género.dibujar_caja_bigotes(ejes=ejes)
+        fig.suptitle('Probabilidad de inseguridad hídrica por género', fontsize=35)
+        fig.savefig(os.path.join(dir_figuras, 'Figura 3'))
+
+        # Figura 4 - Urbanismo
+
+        # Figura 5a - Ingresos
+
+        # Figura 5b Dificultad económica
 
     guardar_traducciones()
