@@ -50,18 +50,17 @@ class Modelo(object):
 
     def calibrar(símismo, país: str):
         datos_país = símismo.obt_datos(país)
-        datos_x = datos_país[símismo.var_x]
-        categorías_x = pd.Categorical(datos_x)
+        x_categórico = símismo.obt_x_categórico(país)
 
         with pm.Model():
             # Referencia: https://twiecki.io/blog/2017/02/08/bayesian-hierchical-non-centered/
             mu_a = pm.Normal(name="mu_a", sigma=.1)
             sigma_a = pm.HalfNormal(name="sigma_a", sigma=.1)
 
-            ajuste_a = pm.Normal(name="ajuste_a", mu=0, sigma=1, shape=categorías_x.categories.size)
+            ajuste_a = pm.Normal(name="ajuste_a", mu=0, sigma=1, shape=x_categórico.categories.size)
             a = pm.Deterministic("a", mu_a + ajuste_a * sigma_a)
 
-            índices_a = categorías_x.codes
+            índices_a = x_categórico.codes
             if símismo.config.col_pesos:
                 # https://discourse.pymc.io/t/how-to-run-logistic-regression-with-weighted-samples/5689/8
                 log_p = datos_país[símismo.config.col_pesos].values * pm.logp(
@@ -89,62 +88,80 @@ class Modelo(object):
             traza = símismo.obt_traza(país, recalibrar)
 
             categorías_x = símismo.obt_categorías_x(país)
-            símismo.obt_categorías_x(país)
 
             az.plot_trace(traza, ["b", "a", "mu_a", "sigma_a"], axes=ejes)
-            if ejes:
+            if not ejes:
                 fig = plt.gcf()
-                fig.suptitle(f"{país}: Probabilidad por {', '.join(categorías_x.categories.tolist())}")
+                fig.suptitle(f"{país}: Probabilidad por {', '.join(categorías_x.tolist())}")
                 fig.savefig(símismo.archivo_gráfico(país, "traza"))
                 plt.close(fig)
 
-    def dibujar_caja_bigotes(símismo, recalibrar=False):
+    def dibujar_caja_bigotes(símismo, recalibrar=False, ejes: Optional[list[plt.Axes]] = None):
         países = símismo.datos[símismo.config.col_país].unique()
 
         for país in países:
-            categorías_x = símismo.obt_categorías_x(país).categories.values.tolist()
+            fig = None
+            if not ejes:
+                fig, ejes = plt.subplots(1, 2, figsize=(12, 6))
+                fig.subplots_adjust(bottom=0.25)
 
-            fig, ejes = plt.subplots(1, 2, figsize=(12, 6))
-            fig.subplots_adjust(bottom=0.25)
-
-            traza_por_categoría = símismo.obt_traza_por_categoría(país, recalibrar)
-            traza_por_categoría = traza_por_categoría.rename({
-                c: traducir(c, IDIOMA) for c in traza_por_categoría
-            })
+            dibujo_dist, traza_por_categoría, categorías_x = símismo.dibujar_histograma(
+                país=país, eje=ejes[0], recalibrar=recalibrar
+            )
             n_categ = len(traza_por_categoría.columns)
-
-            # Dibujar distribución
-            dibujo_dist = sns.kdeplot(traza_por_categoría, ax=ejes[0])
-            ejes[0].set_xlabel("Probabilidad de inseguridad hídrica")
-            ejes[0].set_ylabel("Densidad")
 
             # Ajustar leyenda
             sns.move_legend(
                 dibujo_dist, ncols=max(2, math.ceil(n_categ / 3)), bbox_to_anchor=(1.1, -0.23),
                 loc="center"
             )
-
-            # Dibujar caja
-            caja = traza_por_categoría.boxplot(ax=ejes[1], grid=False, return_type="dict")
-            colores_por_categ = {
+            colores = {
                 categorías_x[i]: dibujo_dist.legend_.legendHandles[i].get_color() for i in range(n_categ)
             }
-            ejes[1].set(xticklabels=[])
-            ejes[1].set_xlabel(símismo.nombre)
-            ejes[1].set_ylabel("Probabilidad de inseguridad hídrica")
+            símismo.dibujar_caja(país=país, eje=ejes[1], colores_por_categ=colores, recalibrar=recalibrar)
 
-            for categ, color in colores_por_categ.items():
-                i = categorías_x.index(categ)
-                for forma in ["boxes", "medians"]:
-                    caja[forma][i].set_color(color)
-                caja["fliers"][i].set_markeredgecolor(color)
-                for forma in ["whiskers", "caps"]:
-                    for j in range(2):
-                        caja[forma][i * 2 + j].set_color(color)
+            if fig:
+                fig.suptitle(f"{país}: Probabilidad de inseguridad hídrica por {símismo.nombre.lower()}")
+                fig.savefig(símismo.archivo_gráfico(país, "caja"))
+                plt.close(fig)
 
-            fig.suptitle(f"{país}: Probabilidad de inseguridad hídrica por {símismo.nombre.lower()}")
-            fig.savefig(símismo.archivo_gráfico(país, "caja"))
-            plt.close(fig)
+    def dibujar_histograma(símismo, país: str, eje: plt.Axes, leyenda=True, recalibrar=False):
+        traza_por_categoría = símismo.obt_traza_por_categoría(país, recalibrar)
+        traza_por_categoría = traza_por_categoría.rename({
+            c: traducir(c, IDIOMA) for c in traza_por_categoría
+        })
+        categorías_x = símismo.obt_categorías_x(país).values.tolist()
+
+        # Dibujar distribución
+        dibujo_dist = sns.kdeplot(traza_por_categoría, ax=eje, legend=leyenda)
+
+        eje.set_xlabel("Probabilidad de inseguridad hídrica", fontdict={"size": 14})
+        eje.set_ylabel("Densidad", fontdict={"size": 14})
+
+        return dibujo_dist, categorías_x
+
+    def dibujar_caja(símismo, país: str, eje: plt.Axes, colores_por_categ: dict, recalibrar=False):
+        categorías_x = símismo.obt_categorías_x(país).values.tolist()
+        traza_por_categoría = símismo.obt_traza_por_categoría(país, recalibrar)
+        traza_por_categoría = traza_por_categoría.rename({
+            c: traducir(c, IDIOMA) for c in traza_por_categoría
+        })
+
+        # Dibujar caja
+        caja = traza_por_categoría.boxplot(ax=eje, grid=False, return_type="dict")
+
+        eje.set(xticklabels=[])
+        eje.set_xlabel(símismo.nombre)
+        eje.set_ylabel("Probabilidad de inseguridad hídrica")
+
+        for categ, color in colores_por_categ.items():
+            i = categorías_x.index(categ)
+            for forma in ["boxes", "medians"]:
+                caja[forma][i].set_color(color)
+            caja["fliers"][i].set_markeredgecolor(color)
+            for forma in ["whiskers", "caps"]:
+                for j in range(2):
+                    caja[forma][i * 2 + j].set_color(color)
 
     def obt_traza(símismo, país: str, recalibrar=False):
         if (recalibrar and not símismo.recalibrado) or not path.isfile(símismo.archivo_calibs(país)):
@@ -156,27 +173,31 @@ class Modelo(object):
         if país:
             datos = datos.loc[símismo.datos[símismo.config.col_país] == país]
 
+        for v in VALS_EXCLUIR:
+            datos = datos.loc[datos[símismo.var_x] != v]
+
         if datos[símismo.var_x].dtype == "category":
-            for v in VALS_EXCLUIR:
-                datos = datos.loc[datos[símismo.var_x] != v]
             datos[símismo.var_x] = datos[símismo.var_x].cat.remove_unused_categories()
 
         datos = datos.dropna()
 
         return datos
 
-    def obt_categorías_x(símismo, país: str):
+    def obt_x_categórico(símismo, país: str):
         datos_país = símismo.obt_datos(país)
         datos_x = datos_país[símismo.var_x]
         for c in datos_x.unique():
             datos_x = datos_x.replace(c, traducir(c, IDIOMA))
         return pd.Categorical(datos_x)
 
+    def obt_categorías_x(símismo, país: str):
+        return pd.Categorical(símismo.obt_x_categórico(país)).categories
+
     def obt_traza_por_categoría(símismo, país: str, recalibrar=False) -> pd.DataFrame:
         traza = símismo.obt_traza(país, recalibrar)
 
         categorías = traza.posterior["b_dim_0"].values
-        categorías_x_datos = símismo.obt_categorías_x(país).categories
+        categorías_x_datos = símismo.obt_categorías_x(país)
 
         return pd.DataFrame({
             categorías_x_datos[c]: traza.posterior["b"].sel({"b_dim_0": c}).values.flatten() for c in categorías
