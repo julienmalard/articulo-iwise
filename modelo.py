@@ -98,7 +98,7 @@ class Modelo(object):
                     transform=pm.distributions.transforms.univariate_ordered
                 )
                 pm.OrderedLogistic(
-                    name="iwise", cutpoints=divisiones, eta=mu,
+                    name="iwise", cutpoints=divisiones, eta=b,
                     observed=y
                 )
 
