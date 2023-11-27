@@ -61,19 +61,83 @@ class Modelo(object):
             a = pm.Deterministic("a", mu_a + ajuste_a * sigma_a)
 
             índices_a = x_categórico.codes
+            y = pm.ConstantData("y", datos_país[símismo.var_y])
             if símismo.config.col_pesos:
                 # https://discourse.pymc.io/t/how-to-run-logistic-regression-with-weighted-samples/5689/8
                 log_p = datos_país[símismo.config.col_pesos].values * pm.logp(
-                    pm.Bernoulli.dist(logit_p=a[índices_a], name="prob"), datos_país[símismo.var_y])
+                    pm.Bernoulli.dist(logit_p=a[índices_a], name="prob"), y)
                 pm.Potential("error", log_p)
             else:
-                pm.Bernoulli(logit_p=a[índices_a], name="prob", observed=datos_país[símismo.var_y])
+                pm.Bernoulli(logit_p=a[índices_a], name="prob", observed=y)
             pm.Deterministic("b", pm.math.invlogit(a))
 
             traza = pm.sample()
 
         az.to_netcdf(traza, símismo.archivo_calibs(país))
         símismo.recalibrado = True
+
+    def validar(símismo):
+        if not símismo.config.cols_preguntas:
+            raise ValueError("Columnas de preguntas individuales no especificadas en la configuración del modelo.")
+        datos = símismo.obt_datos()
+        datos = datos[1:10]
+        n_preguntas = len(símismo.config.cols_preguntas)
+        n_catégories = np.unique(datos[símismo.config.cols_preguntas]).size
+        n_datos = len(datos)
+        try:
+            traza = az.from_netcdf("valid.ncdf")
+        except FileNotFoundError:
+            with pm.Model():
+                y = pm.ConstantData("y", datos[símismo.config.cols_preguntas])
+                b = pm.Normal('b', shape=(n_datos, n_preguntas))
+
+                mu_divisiones = np.tile(np.arange(-1, n_catégories - 2), (n_preguntas, 1))
+
+                divisiones = pm.Normal(
+                    name='divisiones', mu=mu_divisiones, sigma=10, shape=mu_divisiones.shape,
+                    transform=pm.distributions.transforms.univariate_ordered
+                )
+                pm.OrderedLogistic(
+                    name="iwise", cutpoints=divisiones, eta=mu,
+                    observed=y
+                )
+
+                traza = pm.sample()
+
+            az.to_netcdf(traza, "valid.ncdf")
+        az.plot_trace(traza)
+        fig = plt.gcf()
+        fig.suptitle("Traza")
+        fig.savefig("valid.jpg")
+        plt.close(fig)
+
+        for pregunta in range(n_preguntas):
+            fig, ejes = plt.subplots()
+            x = np.arange(-5, 5, 0.01)
+            for nivel in range(n_catégories):
+                traza_pregunta = traza.posterior["divisiones"].loc[{"divisiones_dim_0": pregunta}]
+                moyennes_trace = traza_pregunta.mean(dim=["draw", "chain"])
+                p95s_trace = traza_pregunta.quantile(0.95, dim=["draw", "chain"])
+                p05s_trace = traza_pregunta.quantile(0.05, dim=["draw", "chain"])
+
+                # https://www.pymc.io/projects/docs/en/stable/api/distributions/generated/pymc.OrderedLogistic.html
+                def prob(c):
+                    if nivel == 0:
+                        return 1 - sp.special.expit(x - c.loc[{"divisiones_dim_1": 0}].values)
+                    elif nivel < n_catégories - 1:
+                        return sp.special.expit(x - c.loc[{"divisiones_dim_1": nivel - 1}].values) - sp.special.expit(
+                            x - c.loc[{"divisiones_dim_1": nivel}].values)
+                    else:
+                        return sp.special.expit(x - c.loc[{"divisiones_dim_1": nivel - 1}].values)
+
+                y = prob(moyennes_trace)
+                ligne = ejes.plot(x, y)
+                couleur = ligne[0].get_color()
+
+                ejes.fill_between(x, y, prob(p95s_trace), alpha=0.1, color=couleur)
+                ejes.fill_between(x, y, prob(p05s_trace), alpha=0.1, color=couleur)
+            fig.savefig(f"test_{símismo.config.cols_preguntas[pregunta]}.jpg")
+            plt.close(fig)
 
     def dibujar(símismo, recalibrar=False):
         símismo.dibujar_traza(recalibrar)
@@ -138,7 +202,7 @@ class Modelo(object):
         eje.set_xlabel("Probabilidad de inseguridad hídrica", fontdict={"size": 14})
         eje.set_ylabel("Densidad", fontdict={"size": 14})
 
-        return dibujo_dist, categorías_x
+        return dibujo_dist, traza_por_categoría, categorías_x
 
     def dibujar_caja(símismo, país: str, eje: plt.Axes, colores_por_categ: dict, recalibrar=False):
         categorías_x = símismo.obt_categorías_x(país).values.tolist()
