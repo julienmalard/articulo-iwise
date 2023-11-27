@@ -80,7 +80,7 @@ class Modelo(object):
         if not símismo.config.cols_preguntas:
             raise ValueError("Columnas de preguntas individuales no especificadas en la configuración del modelo.")
         datos = símismo.obt_datos()
-        datos = datos[1:10]
+
         n_preguntas = len(símismo.config.cols_preguntas)
         n_catégories = np.unique(datos[símismo.config.cols_preguntas]).size
         n_datos = len(datos)
@@ -88,55 +88,114 @@ class Modelo(object):
             traza = az.from_netcdf("valid.ncdf")
         except FileNotFoundError:
             with pm.Model():
-                y = pm.ConstantData("y", datos[símismo.config.cols_preguntas])
-                b = pm.Normal('b', shape=(n_datos, n_preguntas))
+                y = pm.ConstantData(
+                    "y", datos[símismo.config.cols_preguntas[0:n_preguntas]].values.astype(int).reshape(
+                        (n_datos, n_preguntas)
+                    )
+                )
 
-                mu_divisiones = np.tile(np.arange(-1, n_catégories - 2), (n_preguntas, 1))
+                b = pm.Normal('b', mu=0, sigma=1, shape=(n_datos, n_preguntas))
+
+                mu_divisiones = np.tile(
+                    np.arange(-1, n_catégories - 2),
+                    (n_preguntas, 1)
+                )  # list(range(-1, n_catégories - 2))#
 
                 divisiones = pm.Normal(
-                    name='divisiones', mu=mu_divisiones, sigma=10, shape=mu_divisiones.shape,
-                    transform=pm.distributions.transforms.univariate_ordered
+                    name='divisiones', mu=mu_divisiones, sigma=10, shape=mu_divisiones.shape,  # n_catégories -1,#
+                    transform=pm.distributions.transforms.ordered
                 )
                 pm.OrderedLogistic(
-                    name="iwise", cutpoints=divisiones, eta=b,
-                    observed=y
+                    name="iwise", cutpoints=divisiones, eta=b, observed=y, compute_p=False
                 )
 
                 traza = pm.sample()
 
             az.to_netcdf(traza, "valid.ncdf")
-        az.plot_trace(traza)
+        az.plot_trace(traza, var_names=["divisiones"])
         fig = plt.gcf()
         fig.suptitle("Traza")
         fig.savefig("valid.jpg")
         plt.close(fig)
 
+        x = np.arange(-5, 5, 0.01)
+
+        # https://www.pymc.io/projects/docs/en/stable/api/distributions/generated/pymc.OrderedLogistic.html
+        def prob(c, niv):
+            if niv == 0:
+                return 1 - sp.special.expit(x - c.loc[{"divisiones_dim_1": 0}].values)
+            elif niv < n_catégories - 1:
+                return sp.special.expit(x - c.loc[{"divisiones_dim_1": niv - 1}].values) - sp.special.expit(
+                    x - c.loc[{"divisiones_dim_1": niv}].values)
+            else:
+                return sp.special.expit(x - c.loc[{"divisiones_dim_1": niv - 1}].values)
+
         for pregunta in range(n_preguntas):
-            fig, ejes = plt.subplots()
-            x = np.arange(-5, 5, 0.01)
+            fig, eje = plt.subplots()
+
+            traza_pregunta = traza.posterior["divisiones"].loc[{"divisiones_dim_0": pregunta}]
+            moyennes_trace = traza_pregunta.mean(dim=["draw", "chain"])
+            p95s_trace = traza_pregunta.quantile(0.95, dim=["draw", "chain"])
+            p05s_trace = traza_pregunta.quantile(0.05, dim=["draw", "chain"])
+
+            p99s_trace = traza_pregunta.quantile(0.99, dim=["draw", "chain"])
+            p01s_trace = traza_pregunta.quantile(0.01, dim=["draw", "chain"])
+
             for nivel in range(n_catégories):
+                y = prob(moyennes_trace, nivel)
+                ligne = eje.plot(x, y, label=f"nivel {nivel}")
+                couleur = ligne[0].get_color()
+
+                eje.fill_between(x, y, prob(p99s_trace, nivel), alpha=0.1, color=couleur)
+                eje.fill_between(x, y, prob(p01s_trace, nivel), alpha=0.1, color=couleur)
+
+                eje.fill_between(x, y, prob(p95s_trace, nivel), alpha=0.2, color=couleur)
+                eje.fill_between(x, y, prob(p05s_trace, nivel), alpha=0.2, color=couleur)
+
+            eje.set_xlabel("Severidad")
+            eje.set_ylabel("Probabilidad de nivel")
+            nombre_pregunta = símismo.config.cols_preguntas[pregunta]
+            fig.legend()
+            fig.suptitle(nombre_pregunta)
+            fig.savefig(f"test_{nombre_pregunta}.jpg")
+            plt.close(fig)
+
+        def prob_cum(c, niv):
+            probs = []
+            for n in list(range(0, niv + 1)):
+                probs.append(prob(c, n))
+            return np.array(probs).sum(axis=0)
+
+        for nivel in range(n_catégories - 1):
+            fig, eje = plt.subplots()
+
+            for pregunta in range(n_preguntas):
                 traza_pregunta = traza.posterior["divisiones"].loc[{"divisiones_dim_0": pregunta}]
                 moyennes_trace = traza_pregunta.mean(dim=["draw", "chain"])
                 p95s_trace = traza_pregunta.quantile(0.95, dim=["draw", "chain"])
                 p05s_trace = traza_pregunta.quantile(0.05, dim=["draw", "chain"])
 
-                # https://www.pymc.io/projects/docs/en/stable/api/distributions/generated/pymc.OrderedLogistic.html
-                def prob(c):
-                    if nivel == 0:
-                        return 1 - sp.special.expit(x - c.loc[{"divisiones_dim_1": 0}].values)
-                    elif nivel < n_catégories - 1:
-                        return sp.special.expit(x - c.loc[{"divisiones_dim_1": nivel - 1}].values) - sp.special.expit(
-                            x - c.loc[{"divisiones_dim_1": nivel}].values)
-                    else:
-                        return sp.special.expit(x - c.loc[{"divisiones_dim_1": nivel - 1}].values)
+                p99s_trace = traza_pregunta.quantile(0.99, dim=["draw", "chain"])
+                p01s_trace = traza_pregunta.quantile(0.01, dim=["draw", "chain"])
 
-                y = prob(moyennes_trace)
-                ligne = ejes.plot(x, y)
+                nombre_pregunta = símismo.config.cols_preguntas[pregunta]
+                y = prob_cum(moyennes_trace, nivel)
+
+                ligne = eje.plot(x, y, label=nombre_pregunta)
                 couleur = ligne[0].get_color()
 
-                ejes.fill_between(x, y, prob(p95s_trace), alpha=0.1, color=couleur)
-                ejes.fill_between(x, y, prob(p05s_trace), alpha=0.1, color=couleur)
-            fig.savefig(f"test_{símismo.config.cols_preguntas[pregunta]}.jpg")
+                eje.fill_between(x, y, prob_cum(p99s_trace, nivel), alpha=0.1, color=couleur)
+                eje.fill_between(x, y, prob_cum(p01s_trace, nivel), alpha=0.1, color=couleur)
+
+                eje.fill_between(x, y, prob_cum(p95s_trace, nivel), alpha=0.2, color=couleur)
+                eje.fill_between(x, y, prob_cum(p05s_trace, nivel), alpha=0.2, color=couleur)
+
+            eje.set_xlabel("Severidad")
+            eje.set_ylabel("Probabilidad de nivel")
+
+            fig.legend()
+            fig.suptitle(f"Nivel inferior o igual a {nivel}")
+            fig.savefig(f"test_nivel_{nivel}.jpg")
             plt.close(fig)
 
     def dibujar(símismo, recalibrar=False):
@@ -165,7 +224,7 @@ class Modelo(object):
 
         for país in países:
             fig = None
-            if not ejes:
+            if ejes is None:
                 fig, ejes = plt.subplots(1, 2, figsize=(12, 6))
                 fig.subplots_adjust(bottom=0.25)
 
