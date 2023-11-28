@@ -1,6 +1,8 @@
 import math
+import os.path
 from os import path, makedirs
 from typing import Optional
+from typing import TYPE_CHECKING
 
 import arviz as az
 import matplotlib.pyplot as plt
@@ -12,6 +14,27 @@ import seaborn as sns
 
 from constantes import VALS_EXCLUIR, IDIOMA
 from traducciones import traducir
+
+if TYPE_CHECKING:
+    from geografía import Geografía
+
+
+def prob(x, n_niveles, dv, niv, c, prg):
+    x_transf = x * c.loc[{"c_dim_1": prg}].values
+    if niv == 0:
+        return 1 - sp.special.expit(x_transf - dv.loc[{"divisiones_dim_1": 0}].values)
+    elif niv < n_niveles - 1:
+        return sp.special.expit(x_transf - dv.loc[{"divisiones_dim_1": niv - 1}].values) - sp.special.expit(
+            x_transf - dv.loc[{"divisiones_dim_1": niv}].values)
+    else:
+        return sp.special.expit(x_transf - dv.loc[{"divisiones_dim_1": niv - 1}].values)
+
+
+def prob_cum(x, n_niveles, dv, niv, c, prg):
+    probs = []
+    for n in list(range(0, niv + 1)):
+        probs.append(prob(x, n_niveles, dv, n, c, prg))
+    return np.array(probs).sum(axis=0)
 
 
 class ConfigDatos(object):
@@ -76,128 +99,6 @@ class Modelo(object):
         az.to_netcdf(traza, símismo.archivo_calibs(país))
         símismo.recalibrado = True
 
-    def validar(símismo):
-        if not símismo.config.cols_preguntas:
-            raise ValueError("Columnas de preguntas individuales no especificadas en la configuración del modelo.")
-        datos = símismo.obt_datos()
-
-        n_preguntas = len(símismo.config.cols_preguntas)
-        n_catégories = np.unique(datos[símismo.config.cols_preguntas]).size
-        n_datos = len(datos)
-        try:
-            traza = az.from_netcdf("valid.ncdf")
-        except FileNotFoundError:
-            with pm.Model():
-                y = pm.ConstantData(
-                    "y", datos[símismo.config.cols_preguntas[0:n_preguntas]].values.astype(int).reshape(
-                        (n_datos, n_preguntas)
-                    )
-                )
-
-                b = pm.Normal('b', mu=0, sigma=1, shape=(n_datos, n_preguntas))
-
-                mu_divisiones = np.tile(
-                    np.arange(-1, n_catégories - 2),
-                    (n_preguntas, 1)
-                )  # list(range(-1, n_catégories - 2))#
-
-                divisiones = pm.Normal(
-                    name='divisiones', mu=mu_divisiones, sigma=10, shape=mu_divisiones.shape,  # n_catégories -1,#
-                    transform=pm.distributions.transforms.ordered
-                )
-                pm.OrderedLogistic(
-                    name="iwise", cutpoints=divisiones, eta=b, observed=y, compute_p=False
-                )
-
-                traza = pm.sample()
-
-            az.to_netcdf(traza, "valid.ncdf")
-        az.plot_trace(traza, var_names=["divisiones"])
-        fig = plt.gcf()
-        fig.suptitle("Traza")
-        fig.savefig("valid.jpg")
-        plt.close(fig)
-
-        x = np.arange(-5, 5, 0.01)
-
-        # https://www.pymc.io/projects/docs/en/stable/api/distributions/generated/pymc.OrderedLogistic.html
-        def prob(c, niv):
-            if niv == 0:
-                return 1 - sp.special.expit(x - c.loc[{"divisiones_dim_1": 0}].values)
-            elif niv < n_catégories - 1:
-                return sp.special.expit(x - c.loc[{"divisiones_dim_1": niv - 1}].values) - sp.special.expit(
-                    x - c.loc[{"divisiones_dim_1": niv}].values)
-            else:
-                return sp.special.expit(x - c.loc[{"divisiones_dim_1": niv - 1}].values)
-
-        for pregunta in range(n_preguntas):
-            fig, eje = plt.subplots()
-
-            traza_pregunta = traza.posterior["divisiones"].loc[{"divisiones_dim_0": pregunta}]
-            moyennes_trace = traza_pregunta.mean(dim=["draw", "chain"])
-            p95s_trace = traza_pregunta.quantile(0.95, dim=["draw", "chain"])
-            p05s_trace = traza_pregunta.quantile(0.05, dim=["draw", "chain"])
-
-            p99s_trace = traza_pregunta.quantile(0.99, dim=["draw", "chain"])
-            p01s_trace = traza_pregunta.quantile(0.01, dim=["draw", "chain"])
-
-            for nivel in range(n_catégories):
-                y = prob(moyennes_trace, nivel)
-                ligne = eje.plot(x, y, label=f"nivel {nivel}")
-                couleur = ligne[0].get_color()
-
-                eje.fill_between(x, y, prob(p99s_trace, nivel), alpha=0.1, color=couleur)
-                eje.fill_between(x, y, prob(p01s_trace, nivel), alpha=0.1, color=couleur)
-
-                eje.fill_between(x, y, prob(p95s_trace, nivel), alpha=0.2, color=couleur)
-                eje.fill_between(x, y, prob(p05s_trace, nivel), alpha=0.2, color=couleur)
-
-            eje.set_xlabel("Severidad")
-            eje.set_ylabel("Probabilidad de nivel")
-            nombre_pregunta = símismo.config.cols_preguntas[pregunta]
-            fig.legend()
-            fig.suptitle(nombre_pregunta)
-            fig.savefig(f"test_{nombre_pregunta}.jpg")
-            plt.close(fig)
-
-        def prob_cum(c, niv):
-            probs = []
-            for n in list(range(0, niv + 1)):
-                probs.append(prob(c, n))
-            return np.array(probs).sum(axis=0)
-
-        for nivel in range(n_catégories - 1):
-            fig, eje = plt.subplots()
-
-            for pregunta in range(n_preguntas):
-                traza_pregunta = traza.posterior["divisiones"].loc[{"divisiones_dim_0": pregunta}]
-                moyennes_trace = traza_pregunta.mean(dim=["draw", "chain"])
-                p95s_trace = traza_pregunta.quantile(0.95, dim=["draw", "chain"])
-                p05s_trace = traza_pregunta.quantile(0.05, dim=["draw", "chain"])
-
-                p99s_trace = traza_pregunta.quantile(0.99, dim=["draw", "chain"])
-                p01s_trace = traza_pregunta.quantile(0.01, dim=["draw", "chain"])
-
-                nombre_pregunta = símismo.config.cols_preguntas[pregunta]
-                y = prob_cum(moyennes_trace, nivel)
-
-                ligne = eje.plot(x, y, label=nombre_pregunta)
-                couleur = ligne[0].get_color()
-
-                eje.fill_between(x, y, prob_cum(p99s_trace, nivel), alpha=0.1, color=couleur)
-                eje.fill_between(x, y, prob_cum(p01s_trace, nivel), alpha=0.1, color=couleur)
-
-                eje.fill_between(x, y, prob_cum(p95s_trace, nivel), alpha=0.2, color=couleur)
-                eje.fill_between(x, y, prob_cum(p05s_trace, nivel), alpha=0.2, color=couleur)
-
-            eje.set_xlabel("Severidad")
-            eje.set_ylabel("Probabilidad de nivel")
-
-            fig.legend()
-            fig.suptitle(f"Nivel inferior o igual a {nivel}")
-            fig.savefig(f"test_nivel_{nivel}.jpg")
-            plt.close(fig)
-
     def dibujar(símismo, recalibrar=False):
         símismo.dibujar_traza(recalibrar)
         símismo.dibujar_caja_bigotes(recalibrar)
@@ -215,7 +116,7 @@ class Modelo(object):
             az.plot_trace(traza, ["b", "a", "mu_a", "sigma_a"], axes=ejes)
             if not ejes:
                 fig = plt.gcf()
-                fig.suptitle(f"{país}: Probabilidad por {', '.join(categorías_x.tolist())}")
+                fig.suptitle(f"{país.país}: Probabilidad por {', '.join(categorías_x.tolist())}")
                 fig.savefig(símismo.archivo_gráfico(país, "traza"))
                 plt.close(fig)
 
@@ -338,3 +239,203 @@ class Modelo(object):
             makedirs(dir_gráfico)
 
         return path.join(dir_gráfico, f"{símismo.nombre}-{país}.jpg")
+
+    def dibujar_valid(símismo, paises: Optional[list["Geografía"]] = None, por_categoría=True):
+        paises = paises or [None]
+        for país in paises:
+            if por_categoría:
+                categorías = símismo.datos[símismo.var_x].unique()
+            else:
+                categorías = [None]
+            for categ in categorías:
+                símismo.dibujar_preguntas(país, categ)
+                símismo.dibujar_niveles(país, categ)
+
+    def dibujar_preguntas(
+            símismo, país: Optional["Geografía"] = None, categoría: Optional[str] = None,
+            cuantiles=(0.5, .95, .99)
+    ):
+        todos_los_datos = símismo.obt_datos()
+        traza = símismo.obt_traza_valid_por_país_y_categ(país, categoría)
+
+        x = np.arange(-3, 3, 0.01)
+        n_preguntas = len(símismo.config.cols_preguntas)
+        n_niveles = np.unique(todos_los_datos[símismo.config.cols_preguntas]).size
+
+        def traza_cuantil(q, v):
+            return traza.posterior[v].quantile(q, dim=["draw", "chain"])
+
+        def traza_cuantil_divs(q, prg):
+            return traza_cuantil(q, "divisiones").loc[{"divisiones_dim_0": prg}]
+
+        fig, ejes = plt.subplots(math.ceil((n_preguntas - 1) / 2), 2,
+                                 figsize=(10, math.ceil((n_preguntas - 1) / 2) * 3))
+        for pregunta in range(n_preguntas):
+            eje = ejes[pregunta // 2, pregunta % 2]
+
+            for nivel in range(n_niveles):
+                y = prob(x, n_niveles, traza_cuantil_divs(0.5, pregunta), nivel, traza_cuantil(0.5, "c"), pregunta)
+                ligne = eje.plot(x, y, label=f"nivel {nivel}")
+                couleur = ligne[0].get_color()
+
+                for q in cuantiles:
+                    q_min = (1 - q) / 2
+                    q_max = (1 - q) / 2 + 0.5
+                    eje.fill_between(
+                        x, y, prob(x, n_niveles, traza_cuantil_divs(q_min, pregunta), nivel, traza_cuantil(q_min, "c"),
+                                   pregunta), alpha=0.1,
+                        color=couleur
+                    )
+                    eje.fill_between(
+                        x, y, prob(x, n_niveles, traza_cuantil_divs(q_max, pregunta), nivel, traza_cuantil(q_max, "c"),
+                                   pregunta), alpha=0.1,
+                        color=couleur
+                    )
+
+            nombre_pregunta = símismo.config.cols_preguntas[pregunta]
+            eje.set_title(nombre_pregunta)
+
+        handles, labels = ejes[0, 0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='lower center')
+
+        fig.suptitle(f"Preguntas {categoría}, {país.país}")
+        fig.supxlabel("Severidad")
+        fig.supylabel("Probabilidad de nivel")
+        fig.savefig(símismo.archivo_gráfico_valid(país, categoría, "preguntas"))
+        plt.close(fig)
+
+    def archivo_gráfico_valid(símismo, país, categoría, tipo):
+        dir_gráfico = path.join(símismo.config.dir_egreso, "valid")
+        if not path.isdir(dir_gráfico):
+            makedirs(dir_gráfico)
+        nombre_archivo = tipo
+        if país:
+            nombre_archivo += f"-{país.país}"
+        if categoría:
+            nombre_archivo += f"-{categoría}"
+        return os.path.join(dir_gráfico, f"{nombre_archivo}.jpg")
+
+    def dibujar_niveles(
+            símismo, país: Optional["Geografía"] = None, categoría: Optional[str] = None, cuantiles=(0.5, .95, .99)
+    ):
+        todos_los_datos = símismo.obt_datos()
+        traza = símismo.obt_traza_valid_por_país_y_categ(país, categoría)
+
+        x = np.arange(-3, 3, 0.01)
+        n_preguntas = len(símismo.config.cols_preguntas)
+        n_niveles = np.unique(todos_los_datos[símismo.config.cols_preguntas]).size
+
+        def traza_cuantil(q, v):
+            return traza.posterior[v].quantile(q, dim=["draw", "chain"])
+
+        def traza_cuantil_divs(q, prg):
+            return traza_cuantil(q, "divisiones").loc[{"divisiones_dim_0": prg}]
+
+        fig, ejes = plt.subplots(math.ceil((n_niveles - 1) / 2), 2, figsize=(10, math.ceil((n_niveles - 1) / 2) * 3))
+        for nivel in range(n_niveles - 1):
+            eje = ejes[nivel % 2, nivel // 2]
+
+            for pregunta in range(n_preguntas):
+                y = prob_cum(
+                    x, n_niveles, traza_cuantil_divs(0.5, pregunta), nivel, traza_cuantil(0.5, "c"), pregunta
+                )
+
+                nombre_pregunta = símismo.config.cols_preguntas[pregunta]
+                ligne = eje.plot(x, y, label=nombre_pregunta)
+                couleur = ligne[0].get_color()
+
+                for q in cuantiles:
+                    q_min = (1 - q) / 2
+                    q_max = (1 - q) / 2 + 0.5
+
+                    eje.fill_between(
+                        x, y, prob_cum(
+                            x, n_niveles, traza_cuantil_divs(q_min, pregunta), nivel,
+                            traza_cuantil(q_min, "c"), pregunta
+                        ), alpha=0.1, color=couleur
+                    )
+                    eje.fill_between(
+                        x, y, prob_cum(
+                            x, n_niveles, traza_cuantil_divs(q_max, pregunta), nivel,
+                            traza_cuantil(q_max, "c"), pregunta
+                        ), alpha=0.1, color=couleur
+                    )
+
+            eje.set_title(f"Nivel inferior o igual a {nivel}")
+
+        handles, labels = ejes[0, 0].get_legend_handles_labels()
+        fig.legend(handles, labels, loc='lower center')
+        fig.supxlabel("Severidad")
+        fig.supylabel("Probabilidad de nivel")
+        fig.suptitle(f"Niveles {categoría}, {país.país}")
+
+        fig.savefig(símismo.archivo_gráfico_valid(país, categoría, "niveles"))
+        plt.close(fig)
+
+    def validar(símismo, país: Optional["Geografía"] = None, categoría: Optional[str] = None):
+        if not símismo.config.cols_preguntas:
+            raise ValueError("Columnas de preguntas individuales no especificadas en la configuración del modelo.")
+        datos = símismo.obt_datos()
+        if país:
+            datos = datos.loc[datos[símismo.config.col_país] == país.país]
+        if categoría:
+            datos = datos.loc[datos[símismo.var_x] == categoría]
+
+        n_datos = len(datos)
+
+        n_preguntas = len(símismo.config.cols_preguntas)
+        n_niveles = np.unique(datos[símismo.config.cols_preguntas]).size
+
+        with pm.Model():
+            y = pm.ConstantData(
+                "y", datos[símismo.config.cols_preguntas[0:n_preguntas]].values.astype(int).reshape(
+                    (n_datos, n_preguntas)
+                )
+            )
+
+            b = pm.Normal('b', mu=0, sigma=1, shape=n_datos)
+            # c = pm.HalfNormal('c', sigma=1, shape=(1, n_preguntas - 1))
+            # d = pm.math.concatenate([pm.math.ones(shape=(1, 1)), c], axis=1)
+            d = pm.HalfNormal('c', sigma=1, shape=(1, n_preguntas))
+
+            mu_divisiones = np.tile(
+                np.arange(-1, n_niveles - 2),
+                (n_preguntas, 1)
+            )  # list(range(-1, n_niveles - 2))#
+
+            divisiones = pm.Normal(
+                name='divisiones', mu=mu_divisiones, sigma=10, shape=mu_divisiones.shape,  # n_niveles -1,#
+                transform=pm.distributions.transforms.ordered
+            )
+            pm.OrderedLogistic(
+                name="iwise", cutpoints=divisiones, eta=(d.T * b).T, observed=y, compute_p=False
+            )
+
+            traza = pm.sample()
+        archivo = símismo.archivo_calibs_valid(país, categoría)
+        az.to_netcdf(traza, archivo)
+
+        az.plot_trace(traza, var_names=["divisiones", "c"])
+        fig = plt.gcf()
+        fig.suptitle("Traza")
+        fig.savefig(símismo.archivo_gráfico(f"{categoría}-{país.país}", os.path.join("traza", "valid")))
+        plt.close(fig)
+
+    def obt_traza_valid_por_país_y_categ(
+            símismo, país: Optional[str] = None, categoría: Optional[str] = None
+    ):
+        archivo = símismo.archivo_calibs_valid(país, categoría)
+        if not path.isfile(archivo):
+            símismo.validar(país, categoría)
+        return az.from_netcdf(archivo)
+
+    def archivo_calibs_valid(símismo, país: Optional["Geografía"] = None, categoría: Optional[str] = None) -> str:
+        dir_calibs = path.join(símismo.config.dir_egreso, "calibs", "valid")
+        if not path.isdir(dir_calibs):
+            makedirs(dir_calibs)
+        nombre_archivo = símismo.nombre
+        if país:
+            nombre_archivo += f"-{país.país}"
+        if categoría:
+            nombre_archivo += f"-{categoría}"
+        return path.join(dir_calibs, f"{nombre_archivo}.ncdf")

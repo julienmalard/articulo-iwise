@@ -1,9 +1,17 @@
-from principal import modelo_género, modelo_geog, Brazil, Guatemala, Honduras, Perú, modelo_ruralidad, \
-    modelo_matrimonio, modelo_empleo, modelo_religión, modelo_clase_económica, modelo_dificultad_económica, \
-    modelo_nivel_educativo
+from principal import modelo_género, modelo_geog, Brazil, Guatemala, Honduras, Perú, modelo_ruralidad
+
+paises = [Brazil, Guatemala, Honduras, Perú]
 
 if __name__ == "__main__":
-    modelo_género.validar()
+    modelo_género.dibujar_valid(paises)
+    modelo_ruralidad.dibujar_valid(paises)
+
+    modelo_género.dibujar_valid()
+    modelo_ruralidad.dibujar_valid()
+
+    modelo_geog.dibujar_valid(por_categoría=False)
+
+
 
     """
     modelo_geog.dibujar()
